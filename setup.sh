@@ -125,6 +125,7 @@ clone_repo
 
 # Symlink dotfiles
 log "Setting up dotfiles..."
+ln -sf "$HOME/dotfiles/.zshrc" "$HOME/.zshrc"
 ln -sf "$HOME/dotfiles/.zshrc_common" "$HOME/.zshrc_common"
 
 # Machine-specific setup

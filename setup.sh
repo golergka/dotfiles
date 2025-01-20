@@ -71,6 +71,13 @@ clone_repo() {
     fi
 }
 
+# Check for existing configuration
+if [ -f "$HOME/.zshrc" ]; then
+    error "Found existing .zshrc file. This script will overwrite it."
+    error "Please backup and remove your existing .zshrc first if you want to proceed."
+    exit 1
+fi
+
 # Detect OS
 OS="$(uname -s)"
 case "$OS" in

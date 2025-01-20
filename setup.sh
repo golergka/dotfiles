@@ -130,8 +130,8 @@ fi
 CURRENT_SHELL="$(basename "$SHELL")"
 if [ "$CURRENT_SHELL" != "zsh" ]; then
     log "Changing default shell to Zsh..."
-    if ! chsh -s "$(command -v zsh)"; then
-        warn "Unable to change shell automatically. Please do it manually if needed."
+    if ! sudo chsh -s "$(command -v zsh)" "$USER"; then
+        warn "Unable to change shell automatically. Please run: sudo chsh -s $(command -v zsh) $USER"
     fi
 else
     log "Zsh is already the default shell"

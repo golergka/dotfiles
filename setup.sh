@@ -1,19 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 IFS=$'\n\t'
+
 trap 'echo "[ERROR] Script failed at line $LINENO"; exit 1' ERR
 
 log() {
-    echo -e "\033[1;32m[INFO]\033[0m $1"
+    echo -e "\033[1;32m[INFO]\033[0m $*"
 }
 
 warn() {
-    echo -e "\033[1;33m[WARN]\033[0m $1"
+    echo -e "\033[1;33m[WARN]\033[0m $*" 1>&2
 }
 
 error() {
-    echo -e "\033[1;31m[ERROR]\033[0m $1" >&2
+    echo -e "\033[1;31m[ERROR]\033[0m $*" 1>&2
 }
 
 check_command() {
@@ -27,9 +28,15 @@ install_package() {
     if ! command -v "$1" &>/dev/null; then
         log "Installing $1..."
         case "$PACKAGE_MANAGER" in
-        brew) brew install "$1" ;;
-        apt-get) sudo apt-get install -y "$1" ;;
-        yum) sudo yum install -y "$1" ;;
+        brew)
+            brew install "$1"
+            ;;
+        apt-get)
+            sudo apt-get update && sudo apt-get install -y "$1"
+            ;;
+        yum)
+            sudo yum install -y "$1"
+            ;;
         *)
             error "Unsupported package manager: $PACKAGE_MANAGER"
             exit 1
@@ -50,15 +57,15 @@ clone_repo() {
         return
     fi
 
-    log "Attempting to clone repository via SSH: $REPO_SSH"
+    log "Attempting to clone repository via SSH..."
     if git clone "$REPO_SSH" "$TARGET_DIR"; then
         log "Successfully cloned repository via SSH."
     else
-        warn "SSH clone failed. Falling back to HTTPS: $REPO_HTTPS"
+        warn "SSH clone failed. Falling back to HTTPS..."
         if git clone "$REPO_HTTPS" "$TARGET_DIR"; then
             log "Successfully cloned repository via HTTPS."
         else
-            error "Failed to clone repository via SSH and HTTPS. Aborting."
+            error "Failed to clone dotfiles repository via both SSH and HTTPS."
             exit 1
         fi
     fi
@@ -88,7 +95,7 @@ Linux)
     ;;
 esac
 
-# Ensure required commands are available
+# Ensure required commands
 check_command git
 check_command curl
 
@@ -98,7 +105,10 @@ install_package zsh
 # Install Oh My Zsh
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     log "Installing Oh My Zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    if ! sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended; then
+        error "Oh My Zsh install failed."
+        exit 1
+    fi
 else
     log "Oh My Zsh is already installed"
 fi
@@ -113,14 +123,16 @@ ln -sf "$HOME/dotfiles/.zshrc_common" "$HOME/.zshrc_common"
 # Machine-specific setup
 if [ ! -f "$HOME/.zshrc_local" ]; then
     log "Creating machine-specific ~/.zshrc_local..."
-    touch "$HOME/.zshrc_local"
     echo "# Machine-specific zsh configuration" >>"$HOME/.zshrc_local"
 fi
 
 # Change default shell to Zsh
-if [ "$SHELL" != "$(which zsh)" ]; then
+CURRENT_SHELL="$(basename "$SHELL")"
+if [ "$CURRENT_SHELL" != "zsh" ]; then
     log "Changing default shell to Zsh..."
-    chsh -s "$(which zsh)"
+    if ! chsh -s "$(command -v zsh)"; then
+        warn "Unable to change shell automatically. Please do it manually if needed."
+    fi
 else
     log "Zsh is already the default shell"
 fi
